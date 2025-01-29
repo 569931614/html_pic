@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>HTML可视化与图片导出工具</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/mode/xml/xml.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.1/purify.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/codemirror.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="toolbar">
+        <button class="export-button" onclick="exportBody()">导出整个页面</button>
+        <button class="export-button" onclick="exportFirstDiv()">导出内容区域</button>
+    </div>
+    <div class="main-content">
+        <div class="editor-container">
+            <textarea id="editor"></textarea>
+        </div>
+        <div class="preview-container">
+            <iframe id="preview" class="preview-iframe" sandbox="allow-same-origin"></iframe>
+        </div>
+    </div>
+
+    <script>
+        // 初始化代码编辑器
+        const editor = CodeMirror.fromTextArea(document.getElementById('editor'), {
+            mode: 'xml',
+            theme: 'default',
+            lineNumbers: true,
+            autoCloseTags: true
+        });
+
+        // 监听编辑器内容变化
+        editor.on('change', () => {
+            updatePreview();
+        });
+
+        // 更新预览
+        function updatePreview() {
+            const html = editor.getValue();
+            const sanitizedHtml = DOMPurify.sanitize(html, {
+                ADD_TAGS: ['style'],
+                ADD_ATTR: ['target'],
+                WHOLE_DOCUMENT: true,
+                FORCE_BODY: true
+            });
+            const preview = document.getElementById('preview');
+            const previewDoc = preview.contentDocument || preview.contentWindow.document;
+            
+            previewDoc.open();
+            previewDoc.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+                    <style>
+                        /* 确保样式正确应用的基础重置 */
+                        * {
+                            box-sizing: border-box;
+                            margin: 0;
+                            padding: 0;
+                        }
+                        body {
+                            min-height: 100vh;
+                            margin: 0;
+                        }
+                    </style>
+                </head>
+                <body>
+                    ${sanitizedHtml}
+                </body>
+                </html>
+            `);
+            previewDoc.close();
+        }
+
+        // 导出body函数
+        async function exportBody() {
+            const preview = document.getElementById('preview');
+            const previewDoc = preview.contentDocument || preview.contentWindow.document;
+            
+            try {
+                // 保存 HTML 文件
+                const htmlContent = editor.getValue();
+                const title = extractTitle(htmlContent) || '未命名';
+                const date = new Date();
+                const timestamp = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}_${String(date.getHours()).padStart(2, '0')}-${String(date.getMinutes()).padStart(2, '0')}-${String(date.getSeconds()).padStart(2, '0')}`;
+                const fileName = `${title}_${timestamp}`;
+                
+                // 保存 HTML 文件
+                const htmlBlob = new Blob([htmlContent], { type: 'text/html' });
+                const htmlLink = document.createElement('a');
+                htmlLink.download = `${fileName}.html`;
+                htmlLink.href = URL.createObjectURL(htmlBlob);
+                htmlLink.click();
+                
+                // 导出图片的原有代码
+                const options = {
+                    scale: 4,
+                    useCORS: true,
+                    allowTaint: true,
+                    backgroundColor: null,
+                    logging: true,
+                    height: previewDoc.body.scrollHeight,
+                    onclone: function(clonedDoc) {
+                        // 添加 Material Symbols 字体链接
+                        const fontLink = document.createElement('link');
+                        fontLink.rel = 'stylesheet';
+                        fontLink.href = 'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0';
+                        clonedDoc.head.appendChild(fontLink);
+                        
+                        // 复制现有样式
+                        const styles = clonedDoc.getElementsByTagName('style');
+                        Array.from(styles).forEach(style => {
+                            clonedDoc.head.appendChild(style.cloneNode(true));
+                        });
+                    }
+                };
+                
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                const canvas = await html2canvas(previewDoc.body, options);
+                const link = document.createElement('a');
+                link.download = `${fileName}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            } catch (error) {
+                console.error('导出失败:', error);
+                alert('导出失败，请重试');
+            }
+        }
+
+        // 导出第一个div函数
+        async function exportFirstDiv() {
+            const preview = document.getElementById('preview');
+            const previewDoc = preview.contentDocument || preview.contentWindow.document;
+            
+            try {
+                // 保存 HTML 文件
+                const htmlContent = editor.getValue();
+                const title = extractTitle(htmlContent) || '未命名';
+                const date = new Date();
+                const timestamp = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}_${String(date.getHours()).padStart(2, '0')}-${String(date.getMinutes()).padStart(2, '0')}-${String(date.getSeconds()).padStart(2, '0')}`;
+                const fileName = `${title}_${timestamp}`;
+                
+                // 保存 HTML 文件
+                const htmlBlob = new Blob([htmlContent], { type: 'text/html' });
+                const htmlLink = document.createElement('a');
+                htmlLink.download = `${fileName}.html`;
+                htmlLink.href = URL.createObjectURL(htmlBlob);
+                htmlLink.click();
+
+                const firstDiv = previewDoc.body.querySelector('div');
+                if (!firstDiv) {
+                    alert('未找到可导出的div元素');
+                    return;
+                }
+
+                const options = {
+                    scale: 4,
+                    useCORS: true,
+                    allowTaint: true,
+                    backgroundColor: null,
+                    logging: true,
+                    height: firstDiv.scrollHeight,
+                    onclone: function(clonedDoc) {
+                        // 添加 Material Symbols 字体链接
+                        const fontLink = document.createElement('link');
+                        fontLink.rel = 'stylesheet';
+                        fontLink.href = 'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0';
+                        clonedDoc.head.appendChild(fontLink);
+                        
+                        // 复制现有样式
+                        const styles = clonedDoc.getElementsByTagName('style');
+                        Array.from(styles).forEach(style => {
+                            clonedDoc.head.appendChild(style.cloneNode(true));
+                        });
+                    }
+                };
+                
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                const canvas = await html2canvas(firstDiv, options);
+                const link = document.createElement('a');
+                link.download = `${fileName}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            } catch (error) {
+                console.error('导出失败:', error);
+                alert('导出失败，请重试');
+            }
+        }
+
+        // 添加提取标题的辅助函数
+        function extractTitle(htmlContent) {
+            // 尝试从 <title> 标签提取
+            const titleMatch = htmlContent.match(/<title>(.*?)<\/title>/i);
+            if (titleMatch && titleMatch[1]) {
+                return titleMatch[1].trim();
+            }
+            
+            // 尝试从第一个 h1 标签提取
+            const h1Match = htmlContent.match(/<h1>(.*?)<\/h1>/i);
+            if (h1Match && h1Match[1]) {
+                return h1Match[1].trim();
+            }
+            
+            return '未命名';
+        }
+
+        // 设置初始示例代码
+        editor.setValue(`<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {
+            font-family: Arial;
+            padding: 20px;
+            background-color: #f0f2f5;
+        }
+        .content {
+            background: white;
+            padding: 24px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #1890ff;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+            margin-top: 0;
+        }
+        p {
+            color: #333;
+            line-height: 1.6;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="content">
+        <h1>Hello World!</h1>
+        <p>这是一个HTML预览示例。</p>
+        <p>现在样式应该可以正确显示了！</p>
+    </div>
+</body>
+</html>`);
+    </script>
+</body>
+</html> 
