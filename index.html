@@ -105,6 +105,18 @@
             const preview = document.getElementById('preview');
             const previewDoc = preview.contentDocument || preview.contentWindow.document;
             
+            // 创建加载提示
+            const loadingMsg = document.createElement('div');
+            loadingMsg.style.position = 'fixed';
+            loadingMsg.style.top = '50%';
+            loadingMsg.style.left = '50%';
+            loadingMsg.style.transform = 'translate(-50%, -50%)';
+            loadingMsg.style.padding = '20px';
+            loadingMsg.style.background = 'rgba(0,0,0,0.7)';
+            loadingMsg.style.color = 'white';
+            loadingMsg.style.borderRadius = '8px';
+            loadingMsg.style.zIndex = '9999';
+            
             try {
                 const htmlContent = editor.getValue();
                 const title = extractTitle(htmlContent) || '未命名';
@@ -112,13 +124,21 @@
                 const timestamp = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}_${String(date.getHours()).padStart(2, '0')}-${String(date.getMinutes()).padStart(2, '0')}-${String(date.getSeconds()).padStart(2, '0')}`;
                 const fileName = `${title}_${timestamp}`;
                 
+                // 更新加载提示
+                loadingMsg.textContent = '正在准备生成图片...';
+                document.body.appendChild(loadingMsg);
+
+                // 等待字体加载
+                await document.fonts.ready;
+                
                 const options = {
                     scale: 4,
                     useCORS: true,
                     allowTaint: true,
                     backgroundColor: null,
-                    logging: true,
+                    logging: false,
                     height: previewDoc.body.scrollHeight,
+                    width: previewDoc.body.scrollWidth,
                     onclone: function(clonedDoc) {
                         const fontLink = document.createElement('link');
                         fontLink.rel = 'stylesheet';
@@ -131,29 +151,19 @@
                         });
                     }
                 };
-                
-                // 显示加载提示
-                const loadingMsg = document.createElement('div');
-                loadingMsg.style.position = 'fixed';
-                loadingMsg.style.top = '50%';
-                loadingMsg.style.left = '50%';
-                loadingMsg.style.transform = 'translate(-50%, -50%)';
-                loadingMsg.style.padding = '20px';
-                loadingMsg.style.background = 'rgba(0,0,0,0.7)';
-                loadingMsg.style.color = 'white';
-                loadingMsg.style.borderRadius = '8px';
-                loadingMsg.style.zIndex = '9999';
-                loadingMsg.textContent = '正在生成图片...';
-                document.body.appendChild(loadingMsg);
 
-                await new Promise(resolve => setTimeout(resolve, 1000));
+                // 更新加载提示
+                loadingMsg.textContent = '正在生成图片...';
+                
+                // 确保所有资源加载完成
+                await new Promise(resolve => setTimeout(resolve, 1500));
                 
                 const canvas = await html2canvas(previewDoc.body, options);
                 
                 // 移除加载提示
                 document.body.removeChild(loadingMsg);
 
-                // 为移动端创建图片预览和下载界面
+                // 创建预览模态框
                 const modal = document.createElement('div');
                 modal.style.position = 'fixed';
                 modal.style.top = '0';
@@ -168,53 +178,64 @@
                 modal.style.justifyContent = 'center';
                 modal.style.padding = '20px';
 
-                const img = document.createElement('img');
-                img.src = canvas.toDataURL('image/png');
+                // 创建图片预览
+                const img = new Image();
                 img.style.maxWidth = '100%';
                 img.style.maxHeight = '80vh';
                 img.style.objectFit = 'contain';
                 
-                const downloadBtn = document.createElement('button');
-                downloadBtn.textContent = '保存图片';
-                downloadBtn.style.marginTop = '20px';
-                downloadBtn.style.padding = '10px 20px';
-                downloadBtn.style.backgroundColor = '#1890ff';
-                downloadBtn.style.color = 'white';
-                downloadBtn.style.border = 'none';
-                downloadBtn.style.borderRadius = '4px';
-                downloadBtn.style.fontSize = '16px';
-                
-                const closeBtn = document.createElement('button');
-                closeBtn.textContent = '关闭';
-                closeBtn.style.marginTop = '10px';
-                closeBtn.style.padding = '10px 20px';
-                closeBtn.style.backgroundColor = '#666';
-                closeBtn.style.color = 'white';
-                closeBtn.style.border = 'none';
-                closeBtn.style.borderRadius = '4px';
-                closeBtn.style.fontSize = '16px';
+                // 使用 blob URL 而不是 data URL
+                canvas.toBlob(function(blob) {
+                    img.src = URL.createObjectURL(blob);
+                    
+                    const downloadBtn = document.createElement('button');
+                    downloadBtn.textContent = '保存图片';
+                    downloadBtn.style.marginTop = '20px';
+                    downloadBtn.style.padding = '10px 20px';
+                    downloadBtn.style.backgroundColor = '#1890ff';
+                    downloadBtn.style.color = 'white';
+                    downloadBtn.style.border = 'none';
+                    downloadBtn.style.borderRadius = '4px';
+                    downloadBtn.style.fontSize = '16px';
+                    
+                    const closeBtn = document.createElement('button');
+                    closeBtn.textContent = '关闭';
+                    closeBtn.style.marginTop = '10px';
+                    closeBtn.style.padding = '10px 20px';
+                    closeBtn.style.backgroundColor = '#666';
+                    closeBtn.style.color = 'white';
+                    closeBtn.style.border = 'none';
+                    closeBtn.style.borderRadius = '4px';
+                    closeBtn.style.fontSize = '16px';
 
-                modal.appendChild(img);
-                modal.appendChild(downloadBtn);
-                modal.appendChild(closeBtn);
-                document.body.appendChild(modal);
+                    modal.appendChild(img);
+                    modal.appendChild(downloadBtn);
+                    modal.appendChild(closeBtn);
+                    document.body.appendChild(modal);
 
-                // 处理下载
-                downloadBtn.onclick = function() {
-                    const link = document.createElement('a');
-                    link.download = `${fileName}.png`;
-                    link.href = canvas.toDataURL('image/png');
-                    link.click();
-                };
+                    // 处理下载
+                    downloadBtn.onclick = function() {
+                        const link = document.createElement('a');
+                        link.download = `${fileName}.png`;
+                        link.href = img.src;
+                        link.click();
+                        URL.revokeObjectURL(img.src); // 清理 blob URL
+                    };
 
-                // 处理关闭
-                closeBtn.onclick = function() {
-                    document.body.removeChild(modal);
-                };
+                    // 处理关闭
+                    closeBtn.onclick = function() {
+                        URL.revokeObjectURL(img.src); // 清理 blob URL
+                        document.body.removeChild(modal);
+                    };
+                }, 'image/png');
 
             } catch (error) {
-                console.error('导出图片失败:', error);
-                alert('导出图片失败，请重试');
+                // 确保移除加载提示
+                if (document.body.contains(loadingMsg)) {
+                    document.body.removeChild(loadingMsg);
+                }
+                console.error('导出失败:', error);
+                alert('导出失败，请重试\n错误信息: ' + error.message);
             }
         }
 
