@@ -13,8 +13,9 @@
 </head>
 <body>
     <div class="toolbar">
-        <button class="export-button" onclick="exportBody()">导出整个页面</button>
-        <button class="export-button" onclick="exportFirstDiv()">导出内容区域</button>
+        <button class="export-button" onclick="exportHtml()">导出HTML代码</button>
+        <button class="export-button" onclick="exportBody()">导出整个页面图片</button>
+        <button class="export-button" onclick="exportFirstDiv()">导出内容区域图片</button>
     </div>
     <div class="main-content">
         <div class="editor-container">
@@ -79,27 +80,38 @@
             previewDoc.close();
         }
 
-        // 导出body函数
-        async function exportBody() {
-            const preview = document.getElementById('preview');
-            const previewDoc = preview.contentDocument || preview.contentWindow.document;
-            
+        // 添加新的导出HTML函数
+        function exportHtml() {
             try {
-                // 保存 HTML 文件
                 const htmlContent = editor.getValue();
                 const title = extractTitle(htmlContent) || '未命名';
                 const date = new Date();
                 const timestamp = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}_${String(date.getHours()).padStart(2, '0')}-${String(date.getMinutes()).padStart(2, '0')}-${String(date.getSeconds()).padStart(2, '0')}`;
                 const fileName = `${title}_${timestamp}`;
                 
-                // 保存 HTML 文件
                 const htmlBlob = new Blob([htmlContent], { type: 'text/html' });
                 const htmlLink = document.createElement('a');
                 htmlLink.download = `${fileName}.html`;
                 htmlLink.href = URL.createObjectURL(htmlBlob);
                 htmlLink.click();
+            } catch (error) {
+                console.error('导出HTML失败:', error);
+                alert('导出HTML失败，请重试');
+            }
+        }
+
+        // 修改现有的导出图片函数，移除HTML导出部分
+        async function exportBody() {
+            const preview = document.getElementById('preview');
+            const previewDoc = preview.contentDocument || preview.contentWindow.document;
+            
+            try {
+                const htmlContent = editor.getValue();
+                const title = extractTitle(htmlContent) || '未命名';
+                const date = new Date();
+                const timestamp = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}_${String(date.getHours()).padStart(2, '0')}-${String(date.getMinutes()).padStart(2, '0')}-${String(date.getSeconds()).padStart(2, '0')}`;
+                const fileName = `${title}_${timestamp}`;
                 
-                // 导出图片的原有代码
                 const options = {
                     scale: 4,
                     useCORS: true,
@@ -108,13 +120,11 @@
                     logging: true,
                     height: previewDoc.body.scrollHeight,
                     onclone: function(clonedDoc) {
-                        // 添加 Material Symbols 字体链接
                         const fontLink = document.createElement('link');
                         fontLink.rel = 'stylesheet';
                         fontLink.href = 'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0';
                         clonedDoc.head.appendChild(fontLink);
                         
-                        // 复制现有样式
                         const styles = clonedDoc.getElementsByTagName('style');
                         Array.from(styles).forEach(style => {
                             clonedDoc.head.appendChild(style.cloneNode(true));
@@ -130,30 +140,22 @@
                 link.href = canvas.toDataURL('image/png');
                 link.click();
             } catch (error) {
-                console.error('导出失败:', error);
-                alert('导出失败，请重试');
+                console.error('导出图片失败:', error);
+                alert('导出图片失败，请重试');
             }
         }
 
-        // 导出第一个div函数
+        // 同样修改 exportFirstDiv 函数，移除HTML导出部分
         async function exportFirstDiv() {
             const preview = document.getElementById('preview');
             const previewDoc = preview.contentDocument || preview.contentWindow.document;
             
             try {
-                // 保存 HTML 文件
                 const htmlContent = editor.getValue();
                 const title = extractTitle(htmlContent) || '未命名';
                 const date = new Date();
                 const timestamp = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}_${String(date.getHours()).padStart(2, '0')}-${String(date.getMinutes()).padStart(2, '0')}-${String(date.getSeconds()).padStart(2, '0')}`;
                 const fileName = `${title}_${timestamp}`;
-                
-                // 保存 HTML 文件
-                const htmlBlob = new Blob([htmlContent], { type: 'text/html' });
-                const htmlLink = document.createElement('a');
-                htmlLink.download = `${fileName}.html`;
-                htmlLink.href = URL.createObjectURL(htmlBlob);
-                htmlLink.click();
 
                 const firstDiv = previewDoc.body.querySelector('div');
                 if (!firstDiv) {
@@ -169,13 +171,11 @@
                     logging: true,
                     height: firstDiv.scrollHeight,
                     onclone: function(clonedDoc) {
-                        // 添加 Material Symbols 字体链接
                         const fontLink = document.createElement('link');
                         fontLink.rel = 'stylesheet';
                         fontLink.href = 'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0';
                         clonedDoc.head.appendChild(fontLink);
                         
-                        // 复制现有样式
                         const styles = clonedDoc.getElementsByTagName('style');
                         Array.from(styles).forEach(style => {
                             clonedDoc.head.appendChild(style.cloneNode(true));
@@ -191,8 +191,8 @@
                 link.href = canvas.toDataURL('image/png');
                 link.click();
             } catch (error) {
-                console.error('导出失败:', error);
-                alert('导出失败，请重试');
+                console.error('导出图片失败:', error);
+                alert('导出图片失败，请重试');
             }
         }
 
